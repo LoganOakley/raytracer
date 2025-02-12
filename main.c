@@ -40,9 +40,12 @@ point sumPoints(int count, ...){
 	va_end(points);
 	return sum; }
 
+double length(point p){
+	return sqrt((p.x*p.x)+(p.y*p.y)+(p.z*p.z));
+}
+
 point normalize(point p){
-	double length = sqrt((p.x*p.x)+(p.y*p.y)+(p.z*p.z));
-	point normalized = scale(1/length, p);
+	point normalized = scale(1/length(p), p);
 	return normalized;
 }
 
@@ -55,38 +58,43 @@ int main(int argc, char* argv[]){
 	char *inFilePath = argv[1];
 
 	FILE *inFile;
+	//open file ensuring it exists
 	inFile = fopen(inFilePath, "r");
+	if(inFile == NULL){
+		printf("Failed opening file: %s\n", inFilePath);
+		exit(1);
+	}
 	ImageSpec *spec = readImageSpec(inFile);
+	fclose(inFile);
 
-
-/* use image spec to compute required values:
-	* w, u, v
-	* h, v
-	* ul, ur, ll, lr
-	* ^h, ^v
-	* rays
-	* intersections
-	* colors
-
-* create picture outputting into an outfile
-*/
+	if(length(crossProduct(spec->updir, spec->viewdir)) == 0){
+		printf("The updir and viewdir are co-linear, unable to create image.\n");
+		exit(1);
+	}
+	// w= -viewdir, u = cross of updir and view dir, v = cross of w and u
+	// normalized for calculations
 	point w = normalize(scale(-1, spec->viewdir));
 	point u = normalize(crossProduct(spec->updir, w));
 	point v = normalize(crossProduct(w, u));
 
+	// n is the unit vector in the view direction
 	point n = normalize(spec->viewdir);
 
-	int d = 1;
+	// using d = 1 implicitly as it is only used in multiplication
 
+	//convert fov to radians for math.h tan function
 	double theta = M_PI*spec->vfov/180;
-	double vwHeight = 2*d*tan(theta/2);
+	double vwHeight = 2*tan(theta/2);
+	// use the aspect ratio to get view window width
 	double vwWidth = spec->width * vwHeight/spec->height;
 
-	point ul = sumPoints(4, spec->origin, scale(d, n), scale(-vwWidth/2, u),scale(vwHeight/2, v));
-	point ur = sumPoints(4, spec->origin, scale(d, n), scale(vwWidth/2, u),scale(vwHeight/2, v));
-	point ll = sumPoints(4, spec->origin, scale(d, n), scale(-vwWidth/2, u),scale(-vwHeight/2, v));
-	point lr = sumPoints(4, spec->origin, scale(d, n), scale(vwWidth/2, u),scale(-vwHeight/2, v));
+	//define corners of view window
+	point ul = sumPoints(4, spec->origin, n, scale(-vwWidth/2, u),scale(vwHeight/2, v));
+	point ur = sumPoints(4, spec->origin, n, scale(vwWidth/2, u),scale(vwHeight/2, v));
+	point ll = sumPoints(4, spec->origin, n, scale(-vwWidth/2, u),scale(-vwHeight/2, v));
+	point lr = sumPoints(4, spec->origin, n, scale(vwWidth/2, u),scale(-vwHeight/2, v));
 
+	// use pixel dimensions and viewwindow corners get our transformation vectors
 	point hDelta = scale( 1.0/(spec->width-1), (sumPoints(2, ur, scale(-1, ul))));
 	point vDelta = scale( 1.0/(spec->height-1), (sumPoints(2, ll, scale(-1, ul))));
 
@@ -114,6 +122,7 @@ int main(int argc, char* argv[]){
 
 	for( int y = 0; y < spec->height; y++){
 		for( int x=0; x<spec->width; x++){
+			//create unit ray with origin at the eye and pointing to pixel (x,y)
 			point rayEnd = sumPoints(3, ul, scale(x, hDelta), scale(y, vDelta));
 			point raydir = normalize(sumPoints(2, rayEnd, scale(-1, spec->origin)));
 		       	color c = TraceRay(spec, (ray){spec->origin,raydir});
