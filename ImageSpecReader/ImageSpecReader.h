@@ -21,6 +21,11 @@ typedef struct {
 
 typedef struct{
 	color matColor;
+	color specularColor;
+	double ambientStrength;
+	double diffuseStrength;
+	double specularStrength;
+	int specularFallOff;
 } material;
 
 typedef struct{
@@ -28,6 +33,12 @@ typedef struct{
 	double radius;
 	int matIndex;
 } sphere;
+
+typedef struct{
+	point loc;
+	unsigned char type;
+	double intensity;
+} light;
 
 typedef struct {
 	int width;
@@ -41,6 +52,8 @@ typedef struct {
 	material *materials;
 	int sphereCount;
 	sphere *spheres;
+	int lightCount;
+	light *lights;
 } ImageSpec;
 
 void handleCommand(ImageSpec*, char*, int, char**);

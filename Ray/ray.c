@@ -40,7 +40,7 @@ double *intersect(ray r, sphere s){
 color TraceRay(ImageSpec *spec, ray ray){
 	double closestIntersection = -1;
 	sphere intersectedSphere;
-	//check if the ray intersects any of the spheres, tracking the closest intersection point and what speher it is.
+	//check if the ray intersects any of the spheres, tracking the closest intersection point and what sphere it is.
 	for(int i = 0; i < spec->sphereCount; i++){
 		sphere sphere = spec->spheres[i];
 		double *t = intersect(ray, sphere);
@@ -52,7 +52,7 @@ color TraceRay(ImageSpec *spec, ray ray){
 			intersectedSphere = sphere;
 		}
 	}
-	// if we have intersected a asphere use it to shade the ray, otherwise return the background color.
+	// if we have intersected a sphere use it to shade the ray, otherwise return the background color.
 	if(closestIntersection >= 0){
 		return ShadeRay(spec, &intersectedSphere);
 	}
