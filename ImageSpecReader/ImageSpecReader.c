@@ -1,4 +1,5 @@
 #include "ImageSpecReader.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #define NUM_REQUIRED 6
@@ -53,12 +54,13 @@ void handleCommmand(ImageSpec *spec, char *command, int argc, char **argv){
 		spec->vfov = atof(argv[0]);
 	}
 	CASE(command, "mtlcolor"){
-		if(argc < 3){
+		if(argc < 10){
 			printf("Incorrect arguments for mtlcolor.\n");
 			exit(1);
 		}
 		color matcolor = {atof(argv[0]),atof(argv[1]),atof(argv[2])};
-		material mat = {matcolor};
+		color specColor = {atof(argv[3]),atof(argv[4]),atof(argv[5])};
+		material mat = {matcolor, specColor, atof(argv[6]), atof(argv[7]), atof(argv[8]), atoi(argv[9])};
 		spec->materialCount++;
 		spec->materials = realloc(spec->materials, spec->materialCount * sizeof(material));
 		spec->materials[spec->materialCount -1] = mat;
@@ -77,6 +79,23 @@ void handleCommmand(ImageSpec *spec, char *command, int argc, char **argv){
 		spec->spheres = realloc(spec->spheres, spec->sphereCount * sizeof(sphere));
 		spec->spheres[spec->sphereCount-1] = obj;
 	}
+	CASE(command, "light"){	
+		// TODO: implement light with x y z w i
+		if(argc < 5){
+			printf("Incorrect arguments for light");
+			exit(1);
+		}
+		light l = {{atof(argv[0]), atof(argv[1]),atof(argv[2])},*argv[3],atof(argv[4])};
+		spec->lightCount++;
+		spec->lights = realloc(spec->lights, spec->lightCount * sizeof(light));
+		spec->lights[spec->lightCount-1] = l;
+	}
+	CASE(command, "attlight"){	
+		// TODO: implement attenuated light with x y z w i c1 c2 c3 for bonus credit
+	}
+	CASE(command, "depthcueing"){	
+		//TODO: implement depthcuing with dcr dcg dcb amin amax dmin dmax for bonus credit
+	}
 	DEFAULT{
 		printf("Unknown command: %s\n", command);
 	}
@@ -93,6 +112,8 @@ ImageSpec *readImageSpec(FILE *specFile){
 	spec->spheres = malloc(0);
 	spec->materialCount=0;
 	spec->materials = malloc(0);
+	spec->lightCount = 0;
+	spec->lights = malloc(0);
 	char buff[255];
 
 	while(fgets(buff, 255, specFile) != NULL){
