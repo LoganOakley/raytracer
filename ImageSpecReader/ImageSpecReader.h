@@ -58,5 +58,8 @@ typedef struct {
 
 void handleCommand(ImageSpec*, char*, int, char**);
 ImageSpec *readImageSpec(FILE*);
-
+void printPoint(point p);
+void printColor(color c);
+color scaleColor(double sFactor, color c);
+color sumColors(int count, ...);
 #endif
