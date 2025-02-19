@@ -7,6 +7,6 @@ typedef struct{
 } ray;
 
 color TraceRay(ImageSpec *p, ray ray);
-color ShadeRay(ImageSpec *spec, sphere *s);
+color ShadeRay(ImageSpec *spec, int sphereIndex, ray *r, double intersectionDistance);
 
 #endif

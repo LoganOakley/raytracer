@@ -1,4 +1,5 @@
 #include "ImageSpecReader.h"
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -85,7 +86,7 @@ void handleCommmand(ImageSpec *spec, char *command, int argc, char **argv){
 			printf("Incorrect arguments for light");
 			exit(1);
 		}
-		light l = {{atof(argv[0]), atof(argv[1]),atof(argv[2])},*argv[3],atof(argv[4])};
+		light l = {{atof(argv[0]), atof(argv[1]),atof(argv[2])},atoi(argv[3]),atof(argv[4])};
 		spec->lightCount++;
 		spec->lights = realloc(spec->lights, spec->lightCount * sizeof(light));
 		spec->lights[spec->lightCount-1] = l;
@@ -160,3 +161,27 @@ ImageSpec *readImageSpec(FILE *specFile){
 	return spec;
 }
 
+void printPoint(point p){
+	printf("x: %.2f, y: %.2f, z: %.2f\n", p.x, p.y, p.z);
+};
+void printColor(color c){
+	printf("r: %.2f, g: %.2f, b: %.2f\n", c.r, c.g, c.b);
+};
+color scaleColor(double sFactor, color c){
+	color scaled = {c.r * sFactor, c.g * sFactor, c.b * sFactor};
+	return scaled;
+}
+
+color sumColors(int count, ...){
+	va_list colors;
+	va_start(colors, count);
+	color sum = {0, 0, 0};
+	for(int i=0; i < count; i++){
+		color c = va_arg(colors, color);
+		sum.r += c.r;
+		sum.g += c.g;
+		sum.b += c.b;
+	}
+	va_end(colors);
+	return sum;
+};

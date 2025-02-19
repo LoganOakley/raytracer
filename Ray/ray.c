@@ -1,9 +1,8 @@
 #include "ray.h"
+#include "../ImageSpecReader/ImageSpecReader.h"
+#include "../Vector/vector.h"
 #include <math.h>
 #include <stdlib.h>
-void printPointP(point p){
-	printf("x: %.2f, y: %.2f, z: %.2f\n", p.x, p.y, p.z);
-};
 
 double *intersect(ray r, sphere s){
 	double *intersectionDistance = malloc(sizeof(double));
@@ -39,7 +38,7 @@ double *intersect(ray r, sphere s){
 
 color TraceRay(ImageSpec *spec, ray ray){
 	double closestIntersection = -1;
-	sphere intersectedSphere;
+	int intersectedSphereIndex;
 	//check if the ray intersects any of the spheres, tracking the closest intersection point and what sphere it is.
 	for(int i = 0; i < spec->sphereCount; i++){
 		sphere sphere = spec->spheres[i];
@@ -49,16 +48,87 @@ color TraceRay(ImageSpec *spec, ray ray){
 		}
 		if( *t < closestIntersection || closestIntersection < 0 ){
 			closestIntersection = *t;
-			intersectedSphere = sphere;
+			intersectedSphereIndex = i;
 		}
 	}
 	// if we have intersected a sphere use it to shade the ray, otherwise return the background color.
 	if(closestIntersection >= 0){
-		return ShadeRay(spec, &intersectedSphere);
+
+		return ShadeRay(spec, intersectedSphereIndex, &ray, closestIntersection);
 	}
 	return spec->bkgcolor;
 }
-color ShadeRay(ImageSpec *spec, sphere *s){	
 
-	return spec->materials[s->matIndex].matColor;
+color ShadeRay(ImageSpec *spec, int sphereIndex, ray *r, double intersectionDistance){	
+	sphere s = spec->spheres[sphereIndex];
+	material mat = spec->materials[s.matIndex];
+	// c = ka*Od + kd * (N.L) * Od + ks *(H.V)^n * Os
+	point intersectionPoint = sumPoints(2, scale(intersectionDistance, r->dir), r->origin);
+	point normal = scale(1/s.radius, sumPoints(2, intersectionPoint, scale(-1, s.center)));
+	point view = normalize(sumPoints(2, r->origin ,scale(-1,intersectionPoint)));	
+	
+	color c = scaleColor(mat.ambientStrength, mat.matColor);
+	for(int i = 0; i< spec->lightCount; i++){
+		light l = spec->lights[i];
+
+		point lightDir;
+
+		if(l.type==1){
+			lightDir = normalize(sumPoints(2, l.loc, scale(-1, intersectionPoint)));
+		} else {
+			lightDir = normalize(scale(-1, l.loc));
+		}
+
+		point half = normalize(sumPoints(2, lightDir, view));
+		float diffuseECon = dot(normal, lightDir);
+		if(diffuseECon < 0){
+			diffuseECon = 0;
+		} 
+	
+		float diffuseIntensity = mat.diffuseStrength * diffuseECon;
+
+		color diffuseComponent = scaleColor(diffuseIntensity, mat.matColor);
+
+		float specECon = dot(half, normal);
+		if(specECon < 0){
+			specECon = 0;
+		}
+
+		float specularIntensity = mat.specularStrength * pow(specECon, mat.specularFallOff);
+		color specularComponent = scaleColor(specularIntensity, mat.specularColor);
+
+		unsigned char S = 1;
+		ray shadowRay = {intersectionPoint, lightDir};
+		double shadowIntersection = -1;
+
+		for(int i = 0; i < spec->sphereCount; i++){
+			if( i == sphereIndex){
+				continue;
+			}
+			sphere sphere = spec->spheres[i];
+			double *t = intersect(shadowRay, sphere);
+			if( t == NULL){
+				continue;
+			}
+			if( *t < shadowIntersection || shadowIntersection < 0 ){
+				shadowIntersection = *t;
+			}
+		}
+
+		if( shadowIntersection > 0 && (l.type = 0 || shadowIntersection < length(sumPoints(2,l.loc, scale(-1,intersectionPoint))))){
+			S=0;
+		}
+		color illuminatedComponent = scaleColor(l.intensity*S, sumColors(2, diffuseComponent, specularComponent));
+		c = sumColors(2, c, illuminatedComponent); 
+	}
+	if(c.r > 1){
+		c.r = 1;
+	}
+	if(c.g > 1){
+		c.g = 1;
+	}
+	if(c.b > 1){
+		c.b = 1;
+	}
+	return c; 
 }
