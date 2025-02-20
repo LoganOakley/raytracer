@@ -1,6 +1,8 @@
 makefile
 raytracer1a
 raytracer1b
+demo_images/
+example_images/
 *.ppm
 *.txt
 .obj/

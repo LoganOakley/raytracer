@@ -63,11 +63,11 @@ color ShadeRay(ImageSpec *spec, int sphereIndex, ray *r, double intersectionDist
 	//get the sphere and material of the sphere
 	sphere s = spec->spheres[sphereIndex];
 	material mat = spec->materials[s.matIndex];
-	// c = ka*Od + kd * (N.L) * Od + ks *(H.V)^n * Os
+	// c = ka*Od + kd * (N.L) * Od + ks *(H.N)^n * Os
 	
 	point intersectionPoint = sumPoints(2, scale(intersectionDistance, r->dir), r->origin);
 	// normal vector from the surface at our intersection point
-	point normal = scale(1/s.radius, sumPoints(2, intersectionPoint, scale(-1, s.center)));
+	point normal = normalize(sumPoints(2, intersectionPoint, scale(-1, s.center)));
 	// direction from surface to the base of the view ray
 	point view = normalize(sumPoints(2, r->origin ,scale(-1,intersectionPoint)));	
 	
@@ -86,29 +86,29 @@ color ShadeRay(ImageSpec *spec, int sphereIndex, ray *r, double intersectionDist
 			lightDir = normalize(scale(-1, l.loc));
 		}
 
-		// the director halfway between the light and view, when this is close to the normal the specular highlight will be maximized
-		point half = normalize(sumPoints(2, lightDir, view));
-
 		// Diffuse energy, cannot be negative
-		float diffuseECon = dot(normal, lightDir);
+		double diffuseECon = dot(normal, lightDir);
 		if(diffuseECon < 0){
 			diffuseECon = 0;
 		} 
 	
 		// set the intensity of the color based off of the energy 
-		float diffuseIntensity = mat.diffuseStrength * diffuseECon;
+		double diffuseIntensity = mat.diffuseStrength * diffuseECon;
 
 		// use intensity to scale the material color for the component based off of diffuse light
 		color diffuseComponent = scaleColor(diffuseIntensity, mat.matColor);
 
+		// the directon halfway between the light and view, when this is close to the normal the specular highlight will be maximized
+		point half = normalize(sumPoints(2, lightDir, view));
+
 		// specular energy, also cannot be negative
-		float specECon = dot(half, normal);
+		double specECon = dot(half, normal);
 		if(specECon < 0){
 			specECon = 0;
 		}
 
 		//set the intensity of the specular light based off of the fall off and the materials specular property
-		float specularIntensity = mat.specularStrength * pow(specECon, mat.specularFallOff);
+		double specularIntensity = mat.specularStrength * pow(specECon, mat.specularFallOff);
 
 		//scale specular color by specular intensity
 		color specularComponent = scaleColor(specularIntensity, mat.specularColor);
@@ -122,6 +122,7 @@ color ShadeRay(ImageSpec *spec, int sphereIndex, ray *r, double intersectionDist
 		// negative value to check if we find an intersection
 		double shadowIntersection = -1;
 
+		double distance_to_light = length(sumPoints(2,l.loc, scale(-1,intersectionPoint)));
 		//find any spheres that intersect the ray
 		for(int i = 0; i < spec->sphereCount; i++){
 			//skip the sphere if it is the one the pixel is on
@@ -141,12 +142,20 @@ color ShadeRay(ImageSpec *spec, int sphereIndex, ray *r, double intersectionDist
 		}
 
 		// if the shadow intersection is in front of the shadow ray, and before the lightsource, the point is shadowed (directional type lights are infinite distance so all intersections will happen before
-		if( shadowIntersection > 0 && (l.type = 0 || shadowIntersection < length(sumPoints(2,l.loc, scale(-1,intersectionPoint))))){
+		if( shadowIntersection > 0 && (l.type = 0 || shadowIntersection < distance_to_light)){
 			S=0;
 		}
 
+
+		// Light attenuation
+		unsigned char attenuation = 1;
+
+		if(l.attenuated == 1){
+			attenuation = 1/(l.c1 + l.c2*distance_to_light + l.c3 * pow(distance_to_light, 2));
+		}
+
 		// combine the 3 components, scaling the light based components by the light intnsity and shadow flag
-		color illuminatedComponent = scaleColor(l.intensity*S, sumColors(2, diffuseComponent, specularComponent));
+		color illuminatedComponent = scaleColor(l.intensity*S*attenuation, sumColors(2, diffuseComponent, specularComponent));
 		c = sumColors(2, c, illuminatedComponent); 
 	}
 

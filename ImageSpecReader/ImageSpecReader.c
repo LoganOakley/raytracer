@@ -81,7 +81,6 @@ void handleCommmand(ImageSpec *spec, char *command, int argc, char **argv){
 		spec->spheres[spec->sphereCount-1] = obj;
 	}
 	CASE(command, "light"){	
-		// TODO: implement light with x y z w i
 		if(argc < 5){
 			printf("Incorrect arguments for light");
 			exit(1);
@@ -93,6 +92,14 @@ void handleCommmand(ImageSpec *spec, char *command, int argc, char **argv){
 	}
 	CASE(command, "attlight"){	
 		// TODO: implement attenuated light with x y z w i c1 c2 c3 for bonus credit
+		if(argc < 8){
+			printf("Incorrect arguments for attlight");
+			exit(1);
+		}
+		light l = {{atof(argv[0]), atof(argv[1]),atof(argv[2])},atoi(argv[3]),atof(argv[4]), 1, atof(argv[5]), atof(argv[6]), atof(argv[7])};
+		spec->lightCount++;
+		spec->lights = realloc(spec->lights, spec->lightCount * sizeof(light));
+		spec->lights[spec->lightCount-1] = l;
 	}
 	CASE(command, "depthcueing"){	
 		//TODO: implement depthcuing with dcr dcg dcb amin amax dmin dmax for bonus credit
