@@ -160,7 +160,7 @@ ImageSpec *readImageSpec(FILE *specFile){
 	
 	return spec;
 }
-
+// helper functions
 void printPoint(point p){
 	printf("x: %.2f, y: %.2f, z: %.2f\n", p.x, p.y, p.z);
 };

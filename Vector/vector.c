@@ -2,6 +2,7 @@
 #include <stdarg.h>
 #include <math.h>
 
+// vector math operations
 point crossProduct(point p1, point p2){
 	double x = (p1.y)*(p2.z) - (p1.z)*(p2.y);
 	double y = -(p1.x)*(p2.z) + (p1.z)*(p2.x);
