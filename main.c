@@ -72,13 +72,14 @@ int main(int argc, char* argv[]){
 		return 1;
 	}
 
+	// create header
 	char *header=malloc(MAX_HEADER_LENGTH);// create and write header to files
 	snprintf(header, MAX_HEADER_LENGTH, "P3 %d %d 255\n", spec->width, spec->height);
 	fputs(header, outFile);
 	free(header);
 
 	char *pixel=malloc(MAX_PIXEL_SIZE);
-
+	// get the ray for each point and trace it for the color to set the pixel
 	for( int y = 0; y < spec->height; y++){
 		for( int x=0; x<spec->width; x++){
 			//create unit ray with origin at the eye and pointing to pixel (x,y)
