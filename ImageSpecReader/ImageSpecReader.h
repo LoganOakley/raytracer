@@ -38,7 +38,12 @@ typedef struct{
 	point loc;
 	unsigned char type;
 	double intensity;
+	unsigned char attenuated;
+	double c1;
+	double c2;
+	double c3;
 } light;
+
 
 typedef struct {
 	int width;
