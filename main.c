@@ -9,27 +9,7 @@
 #define MAX_PIXEL_SIZE 13
 #define MAX_HEADER_LENGTH 20
 
-int main(int argc, char* argv[]){
-	if(argc < 2){
-		printf("No image spec given.\n");
-		return 1;
-	}
-	char *inFilePath = argv[1];
-
-	FILE *inFile;
-	//open file ensuring it exists
-	inFile = fopen(inFilePath, "r");
-	if(inFile == NULL){
-		printf("Failed opening file: %s\n", inFilePath);
-		exit(1);
-	}
-	ImageSpec *spec = readImageSpec(inFile);
-	fclose(inFile);
-
-	if(length(crossProduct(spec->updir, spec->viewdir)) == 0){
-		printf("The updir and viewdir are co-linear, unable to create image.\n");
-		exit(1);
-	}
+void render(ImageSpec *spec, char* outPath){
 	// w= -viewdir, u = cross of updir and view dir, v = cross of w and u
 	// normalized for calculations
 	point w = normalize(scale(-1, spec->viewdir));
@@ -51,25 +31,16 @@ int main(int argc, char* argv[]){
 	point ul = sumPoints(4, spec->origin, n, scale(-vwWidth/2, u),scale(vwHeight/2, v));
 	point ur = sumPoints(4, spec->origin, n, scale(vwWidth/2, u),scale(vwHeight/2, v));
 	point ll = sumPoints(4, spec->origin, n, scale(-vwWidth/2, u),scale(-vwHeight/2, v));
-	point lr = sumPoints(4, spec->origin, n, scale(vwWidth/2, u),scale(-vwHeight/2, v));
 
 	// use pixel dimensions and viewwindow corners get our transformation vectors
 	point hDelta = scale( 1.0/(spec->width-1), (sumPoints(2, ur, scale(-1, ul))));
 	point vDelta = scale( 1.0/(spec->height-1), (sumPoints(2, ll, scale(-1, ul))));
 
-	//create output file path by stripping the current extension and replacing with .ppm
-	char outPath[strlen(inFilePath) + 2]; // outpath is 2 larger incase infile has a single character extension
-	strcpy(outPath, inFilePath);
-	char *ext = strrchr(outPath, '.');
-	*ext = '\0';
-	strcat(outPath, ".ppm");
-
-	
 	FILE *outFile;
 	outFile = fopen(outPath, "w");
 	if(outFile == NULL){
 		printf("Issue creating image file\n");
-		return 1;
+		exit(1);
 	}
 
 	// create header
@@ -90,9 +61,40 @@ int main(int argc, char* argv[]){
 			fputs(pixel, outFile);
 		}
 	}
-
 	free(pixel);
 	fclose(outFile);
-	
+}
+
+int main(int argc, char* argv[]){
+	if(argc < 2){
+		printf("No image spec given.\n");
+		return 1;
+	}
+	char *inFilePath = argv[1];
+
+	FILE *inFile;
+	//open file ensuring it exists
+	inFile = fopen(inFilePath, "r");
+	if(inFile == NULL){
+		printf("Failed opening file: %s\n", inFilePath);
+		exit(1);
+	}
+	ImageSpec *spec = readImageSpec(inFile);
+	fclose(inFile);
+
+	if(length(crossProduct(spec->updir, spec->viewdir)) == 0){
+		printf("The updir and viewdir are co-linear, unable to render.\n");
+		exit(1);
+	}
+
+	//create output file path by stripping the current extension and replacing with .ppm
+	char outPath[strlen(inFilePath) + 2]; // outpath is 2 larger incase infile has a single character extension
+	strcpy(outPath, inFilePath);
+	char *ext = strrchr(outPath, '.');
+	*ext = '\0';
+	strcat(outPath, ".ppm");
+
+	render(spec, outPath);
 	return 0;
 }
+
