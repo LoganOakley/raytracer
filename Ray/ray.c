@@ -147,11 +147,19 @@ color ShadeRay(ImageSpec *spec, int sphereIndex, ray *r, double intersectionDist
 		}
 
 
-		// Light attenuation
-		unsigned char attenuation = 1;
+		// Light attenuation is defaulted 1 so that, if the light is unattenuated there is no scaling
+		double attenuation = 1;
 
+		// if the light is an attenuated light source, use its constants to scale the dirstance to get expected fall off
 		if(l.attenuated == 1){
 			attenuation = 1/(l.c1 + l.c2*distance_to_light + l.c3 * pow(distance_to_light, 2));
+		}
+		// clamp attenuation so it is not negative
+		if (attenuation < 0){
+			attenuation = 0;
+		}
+		if (attenuation > 1){
+			attenuation = 1;
 		}
 
 		// combine the 3 components, scaling the light based components by the light intnsity and shadow flag
