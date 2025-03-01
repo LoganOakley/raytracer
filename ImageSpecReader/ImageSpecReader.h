@@ -37,6 +37,13 @@ typedef struct{
 	int points[3];
 	int textures[3];
 	int normals[3];
+	point basisI;
+	point basisJ;
+	point norm;
+	double d11;
+	double d12;
+	double d22;
+	double det; 
 } triangle;
 
 typedef union {

@@ -1,4 +1,5 @@
 #include "ImageSpecReader.h"
+#include "../Vector/vector.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -142,29 +143,42 @@ void handleCommmand(ImageSpec *spec, char *command, int argc, char **argv){
 			exit(1);
 		}
 
-		shape t;
+		shape shape;
 
 		//handle case where there arent two slashs
 		for (int i = 0; i<argc; i++) {
 			char *string = malloc(sizeof(argv[i]));
 			strcpy(string,argv[i]); 
 			char *tok = strsep(&string, "/"); 
-			t.t.points[i] = atoi(tok)-1;
+			shape.t.points[i] = atoi(tok)-1;
 			tok = strsep(&string, "/"); 
 			if(tok != NULL){
-				t.t.textures[i] = atoi(tok)-1;
+				shape.t.textures[i] = atoi(tok)-1;
 				tok = strsep(&string, "/"); 
 			}else {
-				t.t.textures[i] = -1;
+				shape.t.textures[i] = -1;
 			}
 			if(tok != NULL){
-				t.t.normals[i] = atoi(tok)-1;
+				shape.t.normals[i] = atoi(tok)-1;
 			}else {
-				t.t.normals[i] = -1;
+				shape.t.normals[i] = -1;
 			}
 		}
+		point p1 = spec->vertices[shape.t.points[0]];
+		point p2 = spec->vertices[shape.t.points[1]];
+		point p3 = spec->vertices[shape.t.points[2]];
 
-		object obj = {t, spec->materialCount-1, 3};
+		shape.t.basisI = sumPoints(2, p2, scale(-1, p1));
+		shape.t.basisJ = sumPoints(2, p3, scale(-1, p1));
+		shape.t.norm = normalize(crossProduct(shape.t.basisI, shape.t.basisJ));
+
+		shape.t.d11 = dot(shape.t.basisI, shape.t.basisI);
+		shape.t.d12 = dot(shape.t.basisI, shape.t.basisJ);
+		shape.t.d22 = dot(shape.t.basisJ, shape.t.basisJ);
+		shape.t.det = shape.t.d11*shape.t.d22 - shape.t.d12*shape.t.d12;
+
+
+		object obj = {shape, spec->materialCount-1, 3};
 		spec->objectCount++;
 		spec->objects = realloc(spec->objects, spec->objectCount * sizeof(object));
 		spec->objects[spec->objectCount-1] = obj;

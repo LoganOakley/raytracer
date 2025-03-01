@@ -5,11 +5,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-double *intersectSphere(ray r, object o){
+intersectionData *intersectSphere(ray r, object o){
 	if(o.shapeType != 0){
 		exit(1);
 	};
-	double *intersectionDistance = malloc(sizeof(double));
+	intersectionData *intersection = malloc(sizeof(intersectionData));
 	double t1;
 	double t2;
 
@@ -32,66 +32,66 @@ double *intersectSphere(ray r, object o){
 		return NULL;
 	}
 	if( t1 >= 0 && t2 >=0){
-		*intersectionDistance = t1 <= t2 ? t1 : t2;
+		intersection->distance = t1 <= t2 ? t1 : t2;
 	} else if( t1 >= 0 ){
-		*intersectionDistance = t1;
+		intersection->distance = t1;
 	} else{
-		*intersectionDistance = t2;
+		intersection->distance= t2;
 	}
-	return intersectionDistance;
+	intersection->iPoint = sumPoints(2, scale(intersection->distance, r.dir), r.origin);
+	return intersection;
 }
 
-double *intersectPlane(point n, point p, ray r){
-	double *intersectionDistance = malloc(sizeof(double));
+intersectionData *intersectPlane(point n, point p, ray r){
+	intersectionData *intersection= malloc(sizeof(intersectionData));
+	// simplifed plane intersect formula solved for intersection distance
 	double t = (dot(n, p) - dot(n, r.origin) )/dot(n, r.dir);
 	if(t > 0){
-		*intersectionDistance = t;
+		intersection->distance = t;
+		intersection->iPoint = sumPoints(2, scale(t, r.dir), r.origin);
 	}else {
-		intersectionDistance = NULL;
+		intersection = NULL;
 	}
-	return intersectionDistance;
+	return intersection;
 };
 
-double *intersectTriangle(point p1, point p2, point p3, ray r){
-	point e1 = sumPoints(2, p2, scale(-1, p1));
-	point e2 = sumPoints(2, p3, scale(-1, p1));
-	point n = normalize(crossProduct(e1, e2));
-
-	double *planeIntersect = intersectPlane(n, p1, r);
-	if(planeIntersect == NULL){
-		return planeIntersect;
+intersectionData *intersectTriangle(ImageSpec *spec, object *o, ray r){
+	triangle t = o->shape.t;
+	point p1 = spec->vertices[t.points[0]];
+	if(o->shapeType != 3){
+		printf("Not triangle");
+		return NULL;
 	}
 
-	point intersectionPoint = sumPoints(2, scale(*planeIntersect, r.dir), r.origin);
+	intersectionData *planeIntersection= intersectPlane(t.norm, p1, r);
+	if(planeIntersection == NULL){
+		return planeIntersection;
+	}
 
-	double d11 = dot(e1, e1);
-	double d12 = dot(e1, e2);
-	double d22 = dot(e2, e2);
-	double d1p = dot(e1, sumPoints(2, intersectionPoint, scale(-1, p1)));
-	double d2p = dot(e2, sumPoints(2, intersectionPoint, scale(-1, p1)));
-	double det = (d11*d22)-(d12*d12);
 
-	double b = (d22*d1p - d12*d2p)/det;
-	double g = (d11*d2p - d12*d1p)/det;
+	double d1p = dot(t.basisI, sumPoints(2, planeIntersection->iPoint, scale(-1, p1)));
+	double d2p = dot(t.basisJ, sumPoints(2, planeIntersection->iPoint, scale(-1, p1)));
+
+	// Barycentric Coordinates
+	double b = (t.d22*d1p - t.d12*d2p)/t.det;
+	double g = (t.d11*d2p - t.d12*d1p)/t.det;
 	double a = 1-(b + g);
 
 	if( a > 1 || a < 0 || b > 1 || b < 0 || g > 1 || g < 0  ){
 		return  NULL;
 	}
 
-	return planeIntersect;
+	planeIntersection->barycentCoords = (point){a, b, g};
+	return planeIntersection;
 }
 
-double *intersect(ImageSpec *spec, ray r, object o){
+intersectionData *intersect(ImageSpec *spec, ray r, object o){
 	switch (o.shapeType) {
 		case 0: {
 			return intersectSphere(r, o);
 		}
 		case 3: {
-			point p1 = spec->vertices[o.shape.t.points[0]];
-			point p2 = spec->vertices[o.shape.t.points[1]];
-			point p3 = spec->vertices[o.shape.t.points[2]];
-			return intersectTriangle(p1, p2, p3, r);
+			return intersectTriangle(spec,&o, r);
 		}
 		default:{
 			printf("Unsuported shapeType");
@@ -132,36 +132,39 @@ color calculateSpecularComponent(point normal, point half, double specularStreng
 };
 
 double calculateShadows(ray shadowRay, double distanceToLight,  int sphereIndex, ImageSpec *spec){
-		// flag to determine if pixel is in shadow 1 no shadow, 0 in shadow
-		unsigned char S = 1;
+	// flag to determine if pixel is in shadow 1 no shadow, 0 in shadow
+	unsigned char S = 1;
 
-		// the shadow ray points from the intersection point towards the light
+	// the shadow ray points from the intersection point towards the light
 
-		// negative value to check if we find an intersection
-		double shadowIntersection = -1;
+	// negative value to check if we find an intersection
+	intersectionData *shadowIntersection = malloc(sizeof(intersectionData));
+	shadowIntersection->distance = -1;
 
-		//find any spheres that intersect the ray
-		for(int i = 0; i < spec->objectCount; i++){
-			//skip the sphere if it is the one the pixel is on
-			if( i == sphereIndex){
-				continue;
-			}
-			object object = spec->objects[i];
-			double *t = intersect(spec, shadowRay, object);
-			// if there is no intersection infront of the shadow ray skip
-			if( t == NULL){
-				continue;
-			}
-			// update closest intersection point of the shadow ray
-			if( *t < shadowIntersection || shadowIntersection < 0 ){
-				shadowIntersection = *t;
-			}
+	//find any spheres that intersect the ray
+	for(int i = 0; i < spec->objectCount; i++){
+		//skip the sphere if it is the one the pixel is on
+		if( i == sphereIndex){
+			continue;
 		}
-
-		// if the shadow intersection is in front of the shadow ray, and before the lightsource, the point is shadowed (directional type lights are infinite distance so all intersections will happen before
-		if( shadowIntersection > 0 && shadowIntersection < distanceToLight){
-			S=0;
+		object object = spec->objects[i];
+		intersectionData *intersection = intersect(spec, shadowRay, object);
+		// if there is no intersection infront of the shadow ray skip
+		if( intersection == NULL){
+			continue;
 		}
+		// update closest intersection point of the shadow ray
+		if( intersection->distance < shadowIntersection->distance || shadowIntersection->distance < 0 ){
+			shadowIntersection = intersection;
+		}
+	}
+
+	// if the shadow intersection is in front of the shadow ray, and before the lightsource, the point is shadowed (directional type lights are infinite distance so all intersections will happen before
+	if( shadowIntersection->distance > 0 && shadowIntersection->distance < distanceToLight){
+		S=0;
+	}
+
+	free(shadowIntersection);
 	return S;
 
 };
@@ -181,51 +184,51 @@ double calculateAttenuation(double distanceToLight, light *l){
 };
 
 color TraceRay(ImageSpec *spec, ray ray){
-	double closestIntersection = -1;
-	int intersectedSphereIndex;
+	intersectionData *closestIntersection = malloc(sizeof(intersectionData));
+	closestIntersection->distance = -1;
 	//check if the ray intersects any of the spheres, tracking the closest intersection point and what sphere it is.
 	for(int i = 0; i < spec->objectCount; i++){
 		object object = spec->objects[i];
-		double *t = intersect(spec, ray, object);
-		if( t == NULL){
+		intersectionData *intersection = intersect(spec, ray, object);
+		if( intersection == NULL){
 			continue;
 		}
-		if( *t < closestIntersection || closestIntersection < 0 ){
-			closestIntersection = *t;
-			intersectedSphereIndex = i;
+		if( intersection->distance < closestIntersection->distance || closestIntersection->distance < 0 ){
+			closestIntersection = intersection;
+			closestIntersection->objIndex = i;
 		}
 	}
 	// if we have intersected a sphere use it to shade the ray, otherwise return the background color.
-	if(closestIntersection >= 0){
-
-		return ShadeRay(spec, intersectedSphereIndex, &ray, closestIntersection);
+	if(closestIntersection->distance >= 0){
+		return ShadeRay(spec, &ray, closestIntersection);
 	}
+	free(closestIntersection);
 	return spec->bkgcolor;
 }
 
-color ShadeRay(ImageSpec *spec, int objectIndex, ray *r, double intersectionDistance){
+color ShadeRay(ImageSpec *spec, ray *r, intersectionData *intersection){
 	// c = ka*Od + kd * (N.L) * Od + ks *(H.N)^n * Os
 	
 	//get the sphere and material of the sphere
-	object o = spec->objects[objectIndex];
+	object o = spec->objects[intersection->objIndex];
 	material mat = spec->materials[o.matIndex];
-	point intersectionPoint = sumPoints(2, scale(intersectionDistance, r->dir), r->origin);
 	point normal;
 	if(o.shapeType == 0){
 	// normal vector from the surface at our intersection point
-		normal = normalize(sumPoints(2, intersectionPoint, scale(-1, o.shape.s.center)));
+		normal = normalize(sumPoints(2, intersection->iPoint, scale(-1, o.shape.s.center)));
 	}
 	else{
-		point p1 = spec->vertices[o.shape.t.points[0]];
-		point p2 = spec->vertices[o.shape.t.points[1]];
-		point p3 = spec->vertices[o.shape.t.points[2]];
-		
-		point e1 = sumPoints(2, p2, scale(-1, p1));
-		point e2 = sumPoints(2, p3, scale(-1, p1));
-		normal = normalize(crossProduct(e1, e2));
+		if(o.shape.t.normals[0] >= 0){
+			point n1 = spec->norms[o.shape.t.normals[0]];
+			point n2 = spec->norms[o.shape.t.normals[1]];
+			point n3 = spec->norms[o.shape.t.normals[2]];
+			normal = normalize(sumPoints(3, scale(intersection->barycentCoords.x,n1), scale(intersection->barycentCoords.y,n2), scale(intersection->barycentCoords.z,n3)));
+		}else{
+			normal = o.shape.t.norm;
+		}
 	}
 	// direction from surface to the base of the view ray
-	point view = normalize(sumPoints(2, r->origin ,scale(-1,intersectionPoint)));	
+	point view = normalize(sumPoints(2, r->origin ,scale(-1,intersection->iPoint)));	
 	
 	// set the color to be the ambient component before adding light input
 	color c = scaleColor(mat.ambientStrength, mat.matColor);
@@ -237,7 +240,7 @@ color ShadeRay(ImageSpec *spec, int objectIndex, ray *r, double intersectionDist
 		
 		// light type 1 is a point light otherwise it is a directional light source
 		if(l.type==1){
-			lightDir = normalize(sumPoints(2, l.loc, scale(-1, intersectionPoint)));
+			lightDir = normalize(sumPoints(2, l.loc, scale(-1, intersection->iPoint)));
 		} else {
 			lightDir = normalize(scale(-1, l.loc));
 		}
@@ -249,14 +252,14 @@ color ShadeRay(ImageSpec *spec, int objectIndex, ray *r, double intersectionDist
 
 		color specularComponent = calculateSpecularComponent(normal, half, mat.specularStrength, mat.specularFallOff, mat.specularColor);
 
-		ray shadowRay = {intersectionPoint, lightDir};
+		ray shadowRay = {intersection->iPoint, lightDir};
 		// Shade is defaulted 1 so that, if there is no shadow there is no scaling
 		unsigned char S = 1;
 		// Light attenuation is defaulted 1 so that, if the light is unattenuated there is no scaling
 		double attenuation = 1;
 		if( l.type == 1){
-			double distanceToLight = length(sumPoints(2,l.loc, scale(-1,intersectionPoint)));
-			 S = calculateShadows(shadowRay, distanceToLight, objectIndex, spec);
+			double distanceToLight = length(sumPoints(2,l.loc, scale(-1,intersection->iPoint)));
+			 S = calculateShadows(shadowRay, distanceToLight, intersection->objIndex, spec);
 
 			// if the light is an attenuated light source, use its constants to scale the dirstance to get expected fall off
 			if(l.attenuated == 1){
