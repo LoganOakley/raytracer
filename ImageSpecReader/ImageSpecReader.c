@@ -31,8 +31,7 @@ void handleCommmand(ImageSpec *spec, char *command, int argc, char **argv){
 		point origin = {atof(argv[0]),atof(argv[1]),atof(argv[2])};
 		spec->origin = origin;
 	}
-	CASE(command, "viewdir"){
-		if(argc < 3){
+	CASE(command, "viewdir"){ if(argc < 3){
 			printf("Incorrect arguments for viewdir.\n");
 			exit(1);
 		}
@@ -75,14 +74,17 @@ void handleCommmand(ImageSpec *spec, char *command, int argc, char **argv){
 			printf("No material set before sphere.\n");
 			exit(1);
 		}
-		sphere obj = {{atof(argv[0]),atof(argv[1]),atof(argv[2])},atof(argv[3]), spec->materialCount-1};
-		spec->sphereCount++;
-		spec->spheres = realloc(spec->spheres, spec->sphereCount * sizeof(sphere));
-		spec->spheres[spec->sphereCount-1] = obj;
+		shape s;
+		s.s = (sphere){{atof(argv[0]),atof(argv[1]),atof(argv[2])},atof(argv[3])};
+		object obj = {s, spec->materialCount-1, 0};
+
+		spec->objectCount++;
+		spec->objects = realloc(spec->objects, spec->objectCount * sizeof(object));
+		spec->objects[spec->objectCount-1] = obj;
 	}
 	CASE(command, "light"){	
 		if(argc < 5){
-			printf("Incorrect arguments for light");
+			printf("Incorrect arguments for light\n");
 			exit(1);
 		}
 		light l = {{atof(argv[0]), atof(argv[1]),atof(argv[2])},atoi(argv[3]),atof(argv[4])};
@@ -91,9 +93,8 @@ void handleCommmand(ImageSpec *spec, char *command, int argc, char **argv){
 		spec->lights[spec->lightCount-1] = l;
 	}
 	CASE(command, "attlight"){	
-		// TODO: implement attenuated light with x y z w i c1 c2 c3 for bonus credit
 		if(argc < 8){
-			printf("Incorrect arguments for attlight");
+			printf("Incorrect arguments for attlight\n");
 			exit(1);
 		}
 		light l = {{atof(argv[0]), atof(argv[1]),atof(argv[2])},atoi(argv[3]),atof(argv[4]), 1, atof(argv[5]), atof(argv[6]), atof(argv[7])};
@@ -101,8 +102,72 @@ void handleCommmand(ImageSpec *spec, char *command, int argc, char **argv){
 		spec->lights = realloc(spec->lights, spec->lightCount * sizeof(light));
 		spec->lights[spec->lightCount-1] = l;
 	}
-	CASE(command, "depthcueing"){	
-		//TODO: implement depthcuing with dcr dcg dcb amin amax dmin dmax for bonus credit
+	CASE(command, "v"){
+		if(argc<3){
+			printf("Incorrect arguments for vertex\n");
+			exit(1);
+		}
+		point vert = {atof(argv[0]), atof(argv[1]), atof(argv[2])};
+		spec->vertexCount++;
+		spec->vertices = realloc(spec->vertices, spec->vertexCount * sizeof(point));
+		spec->vertices[spec->vertexCount-1] = vert;
+	}
+	CASE(command, "vn"){
+		if(argc<3){
+			printf("Incorrect arguments for vertex normal\n");
+			exit(1);
+		}
+		point normal = {atof(argv[0]), atof(argv[1]), atof(argv[2])};
+		spec->normCount++;
+		spec->norms = realloc(spec->norms, spec->normCount * sizeof(point));
+		spec->norms[spec->normCount-1] = normal;
+	}
+	CASE(command, "vt"){
+		if(argc<2){
+			printf("Incorrect arguments for vertex texture\n");
+			exit(1);
+		}
+		point textureCoord = {atof(argv[0]), atof(argv[1]), 0};
+		spec->textureCount++;
+		spec->textureCoords = realloc(spec->textureCoords, spec->textureCount * sizeof(point));
+		spec->textureCoords[spec->textureCount-1] = textureCoord;
+	}
+	CASE(command, "f"){
+		if(argc != 3){
+			printf("Incorrect arguments for triangle\n");
+			exit(1);
+		}
+		if(spec->materialCount == 0){
+			printf("No material set before triangle.\n");
+			exit(1);
+		}
+
+		shape t;
+
+		//handle case where there arent two slashs
+		for (int i = 0; i<argc; i++) {
+			char *string = malloc(sizeof(argv[i]));
+			strcpy(string,argv[i]); 
+			char *tok = strsep(&string, "/"); 
+			t.t.points[i] = atoi(tok)-1;
+			tok = strsep(&string, "/"); 
+			if(tok != NULL){
+				t.t.textures[i] = atoi(tok)-1;
+				tok = strsep(&string, "/"); 
+			}else {
+				t.t.textures[i] = -1;
+			}
+			if(tok != NULL){
+				t.t.normals[i] = atoi(tok)-1;
+			}else {
+				t.t.normals[i] = -1;
+			}
+		}
+
+		object obj = {t, spec->materialCount-1, 3};
+		spec->objectCount++;
+		spec->objects = realloc(spec->objects, spec->objectCount * sizeof(object));
+		spec->objects[spec->objectCount-1] = obj;
 	}
 	DEFAULT{
 		printf("Unknown command: %s\n", command);
@@ -116,18 +181,25 @@ ImageSpec *readImageSpec(FILE *specFile){
 	//flags to track which required commands have been used atleast once
 	unsigned char usedCommands = 0b0;
 	ImageSpec *spec = malloc(sizeof(ImageSpec));
-	spec->sphereCount=0;
-	spec->spheres = malloc(0);
+	spec->objectCount=0;
+	spec->objects = malloc(0);
 	spec->materialCount=0;
 	spec->materials = malloc(0);
 	spec->lightCount = 0;
 	spec->lights = malloc(0);
+	spec->vertexCount = 0;
+	spec->vertices = malloc(0);
+	spec->normCount = 0;
+	spec->norms = malloc(0);
+	spec->textureCount = 0;
+	spec->textureCoords = malloc(0);
 	char buff[255];
 
 	while(fgets(buff, 255, specFile) != NULL){
+		char *buffSvPtr;
 		// commands are the first tokens found splitting a line on spaces and newlines
 		// if command is null line is blank so we skip the line
-		char *command = strtok(buff, " \n");
+		char *command = strtok_r(buff, " \n\r", &buffSvPtr);
 		if(command == NULL){
 			continue;
 		}
@@ -140,14 +212,14 @@ ImageSpec *readImageSpec(FILE *specFile){
 		}
 
 		// we grow and array to hold all of the arguments for a command dynamically (could be improved with a larger scale factor \_(0.0)_/)
-		char *arg = strtok(NULL, " \n");
+		char *arg = strtok_r(NULL, " \n", &buffSvPtr);
 		int count = 0;
 		char **args = malloc(count*sizeof(char*));
 		while(arg != NULL){
 			count++;
 			args = realloc(args, count * sizeof(char*));
 			args[count-1] = arg;
-			arg = strtok(NULL, " \n");
+			arg = strtok_r(NULL, " \n", &buffSvPtr);
 		}
 		handleCommmand(spec, command, count, args);
 		free(args);
@@ -167,13 +239,16 @@ ImageSpec *readImageSpec(FILE *specFile){
 	
 	return spec;
 }
+
 // helper functions
 void printPoint(point p){
 	printf("x: %.2f, y: %.2f, z: %.2f\n", p.x, p.y, p.z);
 };
+
 void printColor(color c){
 	printf("r: %.2f, g: %.2f, b: %.2f\n", c.r, c.g, c.b);
 };
+
 color scaleColor(double sFactor, color c){
 	color scaled = {c.r * sFactor, c.g * sFactor, c.b * sFactor};
 	return scaled;

@@ -82,6 +82,10 @@ int main(int argc, char* argv[]){
 	ImageSpec *spec = readImageSpec(inFile);
 	fclose(inFile);
 
+	for(int i = 0; i < 3; i++){
+		printf("p:%i, t:%i, n:%i\n", spec->objects[0].shape.t.points[i],spec->objects[0].shape.t.textures[i],spec->objects[0].shape.t.normals[i]);
+	}
+
 	if(length(crossProduct(spec->updir, spec->viewdir)) == 0){
 		printf("The updir and viewdir are co-linear, unable to render.\n");
 		exit(1);

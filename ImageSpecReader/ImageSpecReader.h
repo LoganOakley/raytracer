@@ -31,8 +31,24 @@ typedef struct{
 typedef struct{
 	point center;
 	double radius;
-	int matIndex;
 } sphere;
+
+typedef struct{
+	int points[3];
+	int textures[3];
+	int normals[3];
+} triangle;
+
+typedef union {
+	sphere s;
+	triangle t;
+} shape;
+
+typedef struct {
+	shape shape;
+	int matIndex;
+	unsigned int shapeType; // the shape type is the number of vertices on the shape, 0 for sphere 3 for triangle
+} object;
 
 typedef struct{
 	point loc;
@@ -44,7 +60,6 @@ typedef struct{
 	double c3;
 } light;
 
-
 typedef struct {
 	int width;
 	int height;
@@ -55,10 +70,16 @@ typedef struct {
 	color bkgcolor;
 	int materialCount;
 	material *materials;
-	int sphereCount;
-	sphere *spheres;
+	int objectCount;
+	object *objects;
 	int lightCount;
 	light *lights;
+	int vertexCount;
+	point *vertices;
+	int normCount;
+	point *norms;
+	int textureCount;
+	point *textureCoords;
 } ImageSpec;
 
 void handleCommand(ImageSpec*, char*, int, char**);
