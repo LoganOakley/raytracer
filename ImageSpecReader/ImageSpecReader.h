@@ -85,7 +85,7 @@ typedef struct {
 	point *vertices;
 	int normCount;
 	point *norms;
-	int textureCount;
+	int textureCoordCount;
 	point *textureCoords;
 } ImageSpec;
 

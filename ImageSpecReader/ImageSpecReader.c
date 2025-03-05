@@ -1,5 +1,6 @@
 #include "ImageSpecReader.h"
 #include "../Vector/vector.h"
+#include "../Texture/texture.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -129,9 +130,9 @@ void handleCommmand(ImageSpec *spec, char *command, int argc, char **argv){
 			exit(1);
 		}
 		point textureCoord = {atof(argv[0]), atof(argv[1]), 0};
-		spec->textureCount++;
-		spec->textureCoords = realloc(spec->textureCoords, spec->textureCount * sizeof(point));
-		spec->textureCoords[spec->textureCount-1] = textureCoord;
+		spec->textureCoordCount++;
+		spec->textureCoords = realloc(spec->textureCoords, spec->textureCoordCount * sizeof(point));
+		spec->textureCoords[spec->textureCoordCount-1] = textureCoord;
 	}
 	CASE(command, "f"){
 		if(argc != 3){
@@ -183,6 +184,18 @@ void handleCommmand(ImageSpec *spec, char *command, int argc, char **argv){
 		spec->objects = realloc(spec->objects, spec->objectCount * sizeof(object));
 		spec->objects[spec->objectCount-1] = obj;
 	}
+	CASE(command, "texture"){
+		FILE *textureFile;
+		textureFile = fopen(argv[0], "r");
+		if(textureFile == NULL){
+			printf("Failed opening texture\n");
+			exit(1);
+		}
+		texture *t = ReadTexture(textureFile);
+		//TODO: put texture into image spec. Then add texture index to objects to use for coloring
+		printf("width %i, height %i", t->width, t->height);	
+		fclose(textureFile);
+	}
 	DEFAULT{
 		printf("Unknown command: %s\n", command);
 	}
@@ -205,7 +218,7 @@ ImageSpec *readImageSpec(FILE *specFile){
 	spec->vertices = malloc(0);
 	spec->normCount = 0;
 	spec->norms = malloc(0);
-	spec->textureCount = 0;
+	spec->textureCoordCount = 0;
 	spec->textureCoords = malloc(0);
 	char buff[255];
 
