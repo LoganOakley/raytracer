@@ -193,8 +193,15 @@ void handleCommmand(ImageSpec *spec, char *command, int argc, char **argv){
 		}
 		texture *t = ReadTexture(textureFile);
 		//TODO: put texture into image spec. Then add texture index to objects to use for coloring
-		printf("width %i, height %i", t->width, t->height);	
 		fclose(textureFile);
+		color c;
+		for( int j =0; j < t->height; j++){
+		for( int i =0; i < t->width; i++){
+				c = t->colors[j*t->width + i];
+				printf("%.0f %.0f %.0f\n",c.r, c.g, c.b);
+			}
+
+		}
 	}
 	DEFAULT{
 		printf("Unknown command: %s\n", command);

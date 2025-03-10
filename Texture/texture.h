@@ -7,7 +7,7 @@
 typedef struct{
 	int width;
 	int height;
-	color *colors[];
+	color colors[];
 }texture;
 
 texture *ReadTexture(FILE*);
