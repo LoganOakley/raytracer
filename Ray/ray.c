@@ -1,6 +1,7 @@
 #include "ray.h"
 #include "../ImageSpecReader/ImageSpecReader.h"
 #include "../Vector/vector.h"
+#include "../Color/color.h"
 #include <float.h>
 #include <math.h>
 #include <stdio.h>

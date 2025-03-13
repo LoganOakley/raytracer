@@ -1,4 +1,5 @@
 #include "texture.h"
+#include "../Color/color.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>

@@ -5,6 +5,7 @@
 #include "ImageSpecReader/ImageSpecReader.h"
 #include "Ray/ray.h"
 #include "Vector/vector.h"
+#include "Color/color.h"
 
 #define MAX_PIXEL_SIZE 13
 #define MAX_HEADER_LENGTH 20

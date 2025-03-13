@@ -1,6 +1,7 @@
 #include "ImageSpecReader.h"
 #include "../Vector/vector.h"
 #include "../Texture/texture.h"
+#include "../Color/color.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>

@@ -1,6 +1,7 @@
 #ifndef RAY
 #define RAY
 #include "../ImageSpecReader/ImageSpecReader.h"
+#include "../Color/color.h"
 typedef struct{
 	point origin;
 	point dir;
