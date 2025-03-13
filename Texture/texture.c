@@ -2,31 +2,35 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#define HEADERSIZE 255
 texture *ReadTexture(FILE* textureFile){
-	char buff[255];
+	char header[HEADERSIZE];
 	
-	
-	if(fgets(buff, 255, textureFile) == NULL){
+	if(fgets(header, HEADERSIZE, textureFile) == NULL){
 		
 		printf("Texture file not compatable\n");
 		exit(1);
 	}
+
+
 	
 	//skip P3
-	strtok(buff, " ");
+	strtok(header, " ");
 	int width = atoi(strtok(NULL, " "));
 	int height = atoi(strtok(NULL, " "));
 
 	texture *t = malloc(sizeof(texture) + sizeof(color)*height * width);
 	t->width = width;
 	t->height = height;
+	uint buffSize = width * 4 * 8;
+	char buff[buffSize];
 	char *tok;
 	int count = 0;
 	//read throught texture line by line
-	while(fgets(buff, 255, textureFile) != NULL){
+	while(fgets(buff, buffSize, textureFile) != NULL){
 		int cFlag = 0;
 		int r, g, b;
-		tok = strtok(buff, " ");
+		tok = strtok(buff, " /n/r");
 		// get r, g, and b values then store into array
 		while(tok != NULL){
 			cFlag++;
@@ -41,7 +45,7 @@ texture *ReadTexture(FILE* textureFile){
 				count++;
 				cFlag = 0;
 			}
-			tok = strtok(NULL, " ");
+			tok = strtok(NULL, " \n\r");
 		}
 	}
 	return t;

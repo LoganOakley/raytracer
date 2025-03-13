@@ -78,7 +78,7 @@ void handleCommmand(ImageSpec *spec, char *command, int argc, char **argv){
 		}
 		shape s;
 		s.s = (sphere){{atof(argv[0]),atof(argv[1]),atof(argv[2])},atof(argv[3])};
-		object obj = {s, spec->materialCount-1, 0};
+		object obj = {s, spec->materialCount-1, 0, spec->textureCount-1};
 
 		spec->objectCount++;
 		spec->objects = realloc(spec->objects, spec->objectCount * sizeof(object));
@@ -179,7 +179,7 @@ void handleCommmand(ImageSpec *spec, char *command, int argc, char **argv){
 		shape.t.det = shape.t.d11*shape.t.d22 - shape.t.d12*shape.t.d12;
 
 
-		object obj = {shape, spec->materialCount-1, 3};
+		object obj = {shape, spec->materialCount-1, 3, spec->textureCount-1};
 		spec->objectCount++;
 		spec->objects = realloc(spec->objects, spec->objectCount * sizeof(object));
 		spec->objects[spec->objectCount-1] = obj;
@@ -193,15 +193,11 @@ void handleCommmand(ImageSpec *spec, char *command, int argc, char **argv){
 		}
 		texture *t = ReadTexture(textureFile);
 		//TODO: put texture into image spec. Then add texture index to objects to use for coloring
-		fclose(textureFile);
-		color c;
-		for( int j =0; j < t->height; j++){
-		for( int i =0; i < t->width; i++){
-				c = t->colors[j*t->width + i];
-				printf("%.0f %.0f %.0f\n",c.r, c.g, c.b);
-			}
 
-		}
+		spec->textureCount++;
+		spec->textures = realloc(spec->textures, spec->textureCount * sizeof(texture));
+		spec->textures[spec->textureCount-1] = t;
+		fclose(textureFile);
 	}
 	DEFAULT{
 		printf("Unknown command: %s\n", command);
@@ -227,6 +223,8 @@ ImageSpec *readImageSpec(FILE *specFile){
 	spec->norms = malloc(0);
 	spec->textureCoordCount = 0;
 	spec->textureCoords = malloc(0);
+	spec->textureCount = 0;
+	spec->textures = malloc(0);
 	char buff[255];
 
 	while(fgets(buff, 255, specFile) != NULL){

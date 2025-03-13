@@ -12,3 +12,6 @@ raytracer1c: main.c .obj/ImageSpecReader.o .obj/ray.o .obj/vector.o .obj/texture
 
 .obj/texture.o: Texture/texture.c Texture/texture.h
 	gcc -g -c Texture/texture.c -o .obj/texture.o -Wall
+
+.obj/color.o: Color/color.c color/color.h
+	gcc -g -c Color/color.c -o .obj/color.o -Wall
