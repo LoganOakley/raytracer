@@ -1,6 +1,7 @@
 #include "ray.h"
 #include "../ImageSpecReader/ImageSpecReader.h"
 #include "../Vector/vector.h"
+#include <float.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -131,7 +132,7 @@ color calculateSpecularComponent(point normal, point half, double specularStreng
 	return  specularComponent;
 };
 
-double calculateShadows(ray shadowRay, double distanceToLight,  int sphereIndex, ImageSpec *spec){
+double calculateShadows(ray shadowRay, double distanceToLight,  int objectIndex, ImageSpec *spec){
 	// flag to determine if pixel is in shadow 1 no shadow, 0 in shadow
 	unsigned char S = 1;
 
@@ -144,7 +145,7 @@ double calculateShadows(ray shadowRay, double distanceToLight,  int sphereIndex,
 	//find any spheres that intersect the ray
 	for(int i = 0; i < spec->objectCount; i++){
 		//skip the sphere if it is the one the pixel is on
-		if( i == sphereIndex){
+		if( i == objectIndex){
 			continue;
 		}
 		object object = spec->objects[i];
@@ -212,26 +213,60 @@ color ShadeRay(ImageSpec *spec, ray *r, intersectionData *intersection){
 	//get the sphere and material of the sphere
 	object o = spec->objects[intersection->objIndex];
 	material mat = spec->materials[o.matIndex];
+	color ambientColor = mat.matColor;
 	point normal;
 	if(o.shapeType == 0){
 	// normal vector from the surface at our intersection point
 		normal = normalize(sumPoints(2, intersection->iPoint, scale(-1, o.shape.s.center)));
+		if(o.textureIndex != -1){
+			texture *t = spec->textures[o.textureIndex];
+			//get texture color
+			double phi = acos(normal.z);
+			double theta = atan2(normal.y, normal.x);
+			double v = phi/M_PI;
+			double u;
+			if(theta >=0){
+				u = theta/(2*M_PI);
+			}else{
+				u = theta/(2*M_PI) + 1;
+			}
+			double integral;
+			int i = round(modf(u, &integral)*(t->width-1));
+			int j = round(modf(v, &integral)*(t->height-1));
+			color textureColor = t->colors[j*t->width + i];
+			ambientColor = (color){textureColor.r/255, textureColor.g/255, textureColor.b/255};
+		}
 	}
 	else{
+		point baryCoords = intersection->barycentCoords;
 		if(o.shape.t.normals[0] >= 0){
 			point n1 = spec->norms[o.shape.t.normals[0]];
 			point n2 = spec->norms[o.shape.t.normals[1]];
 			point n3 = spec->norms[o.shape.t.normals[2]];
-			normal = normalize(sumPoints(3, scale(intersection->barycentCoords.x,n1), scale(intersection->barycentCoords.y,n2), scale(intersection->barycentCoords.z,n3)));
+			normal = normalize(sumPoints(3, scale(baryCoords.x,n1), scale(baryCoords.y,n2), scale(baryCoords.z,n3)));
 		}else{
 			normal = o.shape.t.norm;
 		}
+		if(o.textureIndex != -1){
+			texture *t = spec->textures[o.textureIndex];
+			point tCoord1 = spec->textureCoords[o.shape.t.textures[0]];
+			point tCoord2 = spec->textureCoords[o.shape.t.textures[1]];
+			point tCoord3 = spec->textureCoords[o.shape.t.textures[2]];
+			double u = baryCoords.x * tCoord1.x + baryCoords.y *tCoord2.x + baryCoords.z * tCoord3.x;	
+			double v = baryCoords.x * tCoord1.y + baryCoords.y *tCoord2.y + baryCoords.z * tCoord3.y;	
+			double integral;
+			int i = round(modf(u, &integral)*(t->width-1));
+			int j = round(modf(v, &integral)*(t->height-1));
+			color textureColor = t->colors[j*t->width + i];
+			ambientColor = (color){textureColor.r/255, textureColor.g/255, textureColor.b/255};
+		}
 	}
+
 	// direction from surface to the base of the view ray
 	point view = normalize(sumPoints(2, r->origin ,scale(-1,intersection->iPoint)));	
 	
 	// set the color to be the ambient component before adding light input
-	color c = scaleColor(mat.ambientStrength, mat.matColor);
+	color c = scaleColor(mat.ambientStrength, ambientColor);
 	//check each light in the scene for how it modifies the color at the intersection
 	for(int i = 0; i< spec->lightCount; i++){
 
@@ -245,7 +280,9 @@ color ShadeRay(ImageSpec *spec, ray *r, intersectionData *intersection){
 			lightDir = normalize(scale(-1, l.loc));
 		}
 
-		color diffuseComponent = calculateDiffuseComp(normal, lightDir, mat.diffuseStrength, mat.matColor);
+
+
+		color diffuseComponent = calculateDiffuseComp(normal, lightDir, mat.diffuseStrength, ambientColor);
 
 		// the directon halfway between the light and view, when this is close to the normal the specular highlight will be maximized
 		point half = normalize(sumPoints(2, lightDir, view));
@@ -259,15 +296,14 @@ color ShadeRay(ImageSpec *spec, ray *r, intersectionData *intersection){
 		double attenuation = 1;
 		if( l.type == 1){
 			double distanceToLight = length(sumPoints(2,l.loc, scale(-1,intersection->iPoint)));
-			 S = calculateShadows(shadowRay, distanceToLight, intersection->objIndex, spec);
-
+			S = calculateShadows(shadowRay, distanceToLight, intersection->objIndex, spec);
 			// if the light is an attenuated light source, use its constants to scale the dirstance to get expected fall off
 			if(l.attenuated == 1){
 				attenuation = calculateAttenuation(distanceToLight, &l);
 			}
+		} else {
+			S = calculateShadows(shadowRay, DBL_MAX, intersection->objIndex, spec);
 		}
-
-
 		// combine the 3 components, scaling the light based components by the light intnsity and shadow flag
 		color illuminatedComponent = scaleColor(l.intensity*S*attenuation, sumColors(2, diffuseComponent, specularComponent));
 		c = sumColors(2, c, illuminatedComponent); 

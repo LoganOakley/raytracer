@@ -80,8 +80,8 @@ int main(int argc, char* argv[]){
 		exit(1);
 	}
 	ImageSpec *spec = readImageSpec(inFile);
-	fclose(inFile);
 
+	fclose(inFile);
 	if(length(crossProduct(spec->updir, spec->viewdir)) == 0){
 		printf("The updir and viewdir are co-linear, unable to render.\n");
 		exit(1);

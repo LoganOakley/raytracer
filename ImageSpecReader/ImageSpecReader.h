@@ -2,6 +2,8 @@
 #define	IMAGESPECREADER
 
 #include <stdio.h>
+#include "../Color/color.h"
+#include "../Texture/texture.h"
 
 #define  SWITCH(var, case) if(strcmp(var, case) == 0)
 #define  CASE(var, case) else if(strcmp(var, case) == 0)
@@ -12,12 +14,6 @@ typedef struct {
 	double y;
 	double z;
 } point;
-
-typedef struct {
-	double r;
-	double g;
-	double b;
-} color;
 
 typedef struct{
 	color matColor;
@@ -55,6 +51,7 @@ typedef struct {
 	shape shape;
 	int matIndex;
 	unsigned int shapeType; // the shape type is the number of vertices on the shape, 0 for sphere 3 for triangle
+	int textureIndex;
 } object;
 
 typedef struct{
@@ -85,14 +82,13 @@ typedef struct {
 	point *vertices;
 	int normCount;
 	point *norms;
-	int textureCount;
+	int textureCoordCount;
 	point *textureCoords;
+	int textureCount;
+	texture **textures;
 } ImageSpec;
 
 void handleCommand(ImageSpec*, char*, int, char**);
 ImageSpec *readImageSpec(FILE*);
 void printPoint(point p);
-void printColor(color c);
-color scaleColor(double sFactor, color c);
-color sumColors(int count, ...);
 #endif

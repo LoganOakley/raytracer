@@ -1,5 +1,6 @@
 #include "ImageSpecReader.h"
 #include "../Vector/vector.h"
+#include "../Texture/texture.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -77,7 +78,7 @@ void handleCommmand(ImageSpec *spec, char *command, int argc, char **argv){
 		}
 		shape s;
 		s.s = (sphere){{atof(argv[0]),atof(argv[1]),atof(argv[2])},atof(argv[3])};
-		object obj = {s, spec->materialCount-1, 0};
+		object obj = {s, spec->materialCount-1, 0, spec->textureCount-1};
 
 		spec->objectCount++;
 		spec->objects = realloc(spec->objects, spec->objectCount * sizeof(object));
@@ -129,9 +130,9 @@ void handleCommmand(ImageSpec *spec, char *command, int argc, char **argv){
 			exit(1);
 		}
 		point textureCoord = {atof(argv[0]), atof(argv[1]), 0};
-		spec->textureCount++;
-		spec->textureCoords = realloc(spec->textureCoords, spec->textureCount * sizeof(point));
-		spec->textureCoords[spec->textureCount-1] = textureCoord;
+		spec->textureCoordCount++;
+		spec->textureCoords = realloc(spec->textureCoords, spec->textureCoordCount * sizeof(point));
+		spec->textureCoords[spec->textureCoordCount-1] = textureCoord;
 	}
 	CASE(command, "f"){
 		if(argc != 3){
@@ -178,10 +179,25 @@ void handleCommmand(ImageSpec *spec, char *command, int argc, char **argv){
 		shape.t.det = shape.t.d11*shape.t.d22 - shape.t.d12*shape.t.d12;
 
 
-		object obj = {shape, spec->materialCount-1, 3};
+		object obj = {shape, spec->materialCount-1, 3, spec->textureCount-1};
 		spec->objectCount++;
 		spec->objects = realloc(spec->objects, spec->objectCount * sizeof(object));
 		spec->objects[spec->objectCount-1] = obj;
+	}
+	CASE(command, "texture"){
+		FILE *textureFile;
+		textureFile = fopen(argv[0], "r");
+		if(textureFile == NULL){
+			printf("Failed opening texture\n");
+			exit(1);
+		}
+		texture *t = ReadTexture(textureFile);
+		//TODO: put texture into image spec. Then add texture index to objects to use for coloring
+
+		spec->textureCount++;
+		spec->textures = realloc(spec->textures, spec->textureCount * sizeof(texture));
+		spec->textures[spec->textureCount-1] = t;
+		fclose(textureFile);
 	}
 	DEFAULT{
 		printf("Unknown command: %s\n", command);
@@ -205,8 +221,10 @@ ImageSpec *readImageSpec(FILE *specFile){
 	spec->vertices = malloc(0);
 	spec->normCount = 0;
 	spec->norms = malloc(0);
-	spec->textureCount = 0;
+	spec->textureCoordCount = 0;
 	spec->textureCoords = malloc(0);
+	spec->textureCount = 0;
+	spec->textures = malloc(0);
 	char buff[255];
 
 	while(fgets(buff, 255, specFile) != NULL){
