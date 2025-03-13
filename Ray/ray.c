@@ -71,6 +71,7 @@ intersectionData *intersectTriangle(ImageSpec *spec, object *o, ray r){
 	}
 
 
+	//get data for barycentric coords and return the data
 	double d1p = dot(t.basisI, sumPoints(2, planeIntersection->iPoint, scale(-1, p1)));
 	double d2p = dot(t.basisJ, sumPoints(2, planeIntersection->iPoint, scale(-1, p1)));
 
@@ -219,6 +220,7 @@ color ShadeRay(ImageSpec *spec, ray *r, intersectionData *intersection){
 	if(o.shapeType == 0){
 	// normal vector from the surface at our intersection point
 		normal = normalize(sumPoints(2, intersection->iPoint, scale(-1, o.shape.s.center)));
+		// if the object is textured get the texture coord and retrieve color
 		if(o.textureIndex != -1){
 			texture *t = spec->textures[o.textureIndex];
 			//get texture color
@@ -248,6 +250,7 @@ color ShadeRay(ImageSpec *spec, ray *r, intersectionData *intersection){
 		}else{
 			normal = o.shape.t.norm;
 		}
+		// if the object is textured get the texture coord and retrieve color
 		if(o.textureIndex != -1){
 			texture *t = spec->textures[o.textureIndex];
 			point tCoord1 = spec->textureCoords[o.shape.t.textures[0]];

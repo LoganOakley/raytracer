@@ -130,6 +130,7 @@ void handleCommmand(ImageSpec *spec, char *command, int argc, char **argv){
 			printf("Incorrect arguments for vertex texture\n");
 			exit(1);
 		}
+		//z coord is un-needed for 2D texture coords
 		point textureCoord = {atof(argv[0]), atof(argv[1]), 0};
 		spec->textureCoordCount++;
 		spec->textureCoords = realloc(spec->textureCoords, spec->textureCoordCount * sizeof(point));
@@ -147,29 +148,34 @@ void handleCommmand(ImageSpec *spec, char *command, int argc, char **argv){
 
 		shape shape;
 
-		//handle case where there arent two slashs
 		for (int i = 0; i<argc; i++) {
 			char *string = malloc(sizeof(argv[i]));
 			strcpy(string,argv[i]); 
 			char *tok = strsep(&string, "/"); 
+			//point is the first number 
 			shape.t.points[i] = atoi(tok)-1;
 			tok = strsep(&string, "/"); 
 			if(tok != NULL){
+				//get texture coord from file
 				shape.t.textures[i] = atoi(tok)-1;
 				tok = strsep(&string, "/"); 
 			}else {
+				//set to -1 if not provided
 				shape.t.textures[i] = -1;
 			}
 			if(tok != NULL){
+				//same for normals
 				shape.t.normals[i] = atoi(tok)-1;
 			}else {
 				shape.t.normals[i] = -1;
 			}
 		}
+		//define points for triangle
 		point p1 = spec->vertices[shape.t.points[0]];
 		point p2 = spec->vertices[shape.t.points[1]];
 		point p3 = spec->vertices[shape.t.points[2]];
 
+		//calculate needed info for later
 		shape.t.basisI = sumPoints(2, p2, scale(-1, p1));
 		shape.t.basisJ = sumPoints(2, p3, scale(-1, p1));
 		shape.t.norm = normalize(crossProduct(shape.t.basisI, shape.t.basisJ));
@@ -192,8 +198,8 @@ void handleCommmand(ImageSpec *spec, char *command, int argc, char **argv){
 			printf("Failed opening texture\n");
 			exit(1);
 		}
+		//let texture reader create texture
 		texture *t = ReadTexture(textureFile);
-		//TODO: put texture into image spec. Then add texture index to objects to use for coloring
 
 		spec->textureCount++;
 		spec->textures = realloc(spec->textures, spec->textureCount * sizeof(texture));
