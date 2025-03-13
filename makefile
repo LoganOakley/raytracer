@@ -1,3 +1,5 @@
+DIRS=.obj
+$(shell mkdir -p $(DIRS))
 raytracer1c: main.c .obj/ImageSpecReader.o .obj/ray.o .obj/vector.o .obj/texture.o
 	gcc -g main.c .obj/ImageSpecReader.o .obj/ray.o .obj/vector.o .obj/texture.o -o raytracer1c -lm -Wall
 
