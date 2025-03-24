@@ -15,6 +15,7 @@ typedef struct {
 	double z;
 } point;
 
+//the materials refraction index is in the matColor
 typedef struct{
 	color matColor;
 	color specularColor;
@@ -22,6 +23,7 @@ typedef struct{
 	double diffuseStrength;
 	double specularStrength;
 	int specularFallOff;
+	double opacity;
 } material;
 
 typedef struct{
