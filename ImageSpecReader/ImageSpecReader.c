@@ -19,11 +19,11 @@ void handleCommmand(ImageSpec *spec, char *command, int argc, char **argv){
 		spec->height = atoi(argv[1]);
 	}
 	CASE(command, "bkgcolor"){
-		if(argc < 3){
+		if(argc < 4){
 			printf("Incorrect arguments for bkgcolor.\n");
 			exit(1);
 		}
-		color bkgcolor = {atof(argv[0]), atof(argv[1]), atof(argv[2])};
+		color bkgcolor = {atof(argv[0]), atof(argv[1]), atof(argv[2]), atof(argv[3])};
 		spec->bkgcolor = bkgcolor;
 	}
 	CASE(command, "eye"){
@@ -57,13 +57,14 @@ void handleCommmand(ImageSpec *spec, char *command, int argc, char **argv){
 		spec->vfov = atof(argv[0]);
 	}
 	CASE(command, "mtlcolor"){
-		if(argc < 10){
+		if(argc < 12){
 			printf("Incorrect arguments for mtlcolor.\n");
 			exit(1);
 		}
-		color matcolor = {atof(argv[0]),atof(argv[1]),atof(argv[2])};
+		//the matcolor will store the materials index of refratction
+		color matcolor = {atof(argv[0]),atof(argv[1]),atof(argv[2]), atof(argv[11])};
 		color specColor = {atof(argv[3]),atof(argv[4]),atof(argv[5])};
-		material mat = {matcolor, specColor, atof(argv[6]), atof(argv[7]), atof(argv[8]), atoi(argv[9])};
+		material mat = {matcolor, specColor, atof(argv[6]), atof(argv[7]), atof(argv[8]), atoi(argv[9]), atof(argv[10])};
 		spec->materialCount++;
 		spec->materials = realloc(spec->materials, spec->materialCount * sizeof(material));
 		spec->materials[spec->materialCount -1] = mat;
