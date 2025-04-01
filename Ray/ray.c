@@ -7,6 +7,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define ITERATION_DEPTH 10
+
 intersectionData *intersectSphere(ray r, object o){
 	if(o.shapeType != 0){
 		exit(1);
@@ -30,12 +32,12 @@ intersectionData *intersectSphere(ray r, object o){
 	// get the two possible solutions and return the closest the ray origin in the positive direction.
 	t1 = (-B + sqrt(dis))/(2*A);
 	t2 = (-B - sqrt(dis))/(2*A);
-	if( t1 < 0 && t2 < 0){
+	if( t1 < .0001 && t2 < .0001){
 		return NULL;
 	}
-	if( t1 >= 0 && t2 >=0){
+	if( t1 >= .0001 && t2 >= .0001){
 		intersection->distance = t1 <= t2 ? t1 : t2;
-	} else if( t1 >= 0 ){
+	} else if( t1 >= .0001 ){
 		intersection->distance = t1;
 	} else{
 		intersection->distance= t2;
@@ -186,13 +188,70 @@ double calculateAttenuation(double distanceToLight, light *l){
 	return attenuation;
 };
 
-color TraceRay(ImageSpec *spec, ray ray){
+color calculateReflection(ImageSpec *spec, intersectionData *intersection, ray *incoming, point normal,double refractionIndex, int i){
+	point incidentDir = normalize(scale(-1, incoming->dir));
+	double cos = dot(normal, incidentDir);
+	if(cos < 0){
+		cos = -cos;
+		normal = scale(-1, normal);
+	}
+	// R=2(N.I)N-I
+	point rDir = sumPoints(2, scale(2*cos, normal), scale(-1, incidentDir));
+	ray R = (ray){intersection->iPoint, rDir};
+	color c = TraceRay(spec, R, ++i);
+
+	double frensel0 = ((refractionIndex-1)/(refractionIndex+1)) * ((refractionIndex-1)/(refractionIndex+1));
+	double frensel = frensel0 + (1-frensel0)* pow(1- cos, 5);
+	if(frensel >1){
+		printf("ref\n");
+	}
+	c = scaleColor(frensel, c);
+	return c;
+}
+
+color calculateTransparency(ImageSpec *spec, intersectionData *intersection, ray *incoming, point normal, double refractionIndex, double opacity, int i){
+	if(opacity >= 1){
+		return (color){0,0,0};
+	}
+	point incidentDir = normalize(scale(-1, incoming->dir));
+	double refraction = 1/refractionIndex;
+	double cos = dot(normal, incidentDir);
+	if(cos < 0){
+		cos = -cos;
+		normal = scale(-1, normal);
+		//hack refraction index until stack is created
+		refraction=refractionIndex;
+	}
+
+	double frensel0 = ((refractionIndex-1)/(refractionIndex+1)) * ((refractionIndex-1)/(refractionIndex+1));
+	double frensel = frensel0 + (1-frensel0) * pow(1- cos, 5);
+	if(frensel >1){
+		printf("trans\n");
+	}
+
+
+	double test = 1- ((refraction*refraction) *(1-(cos)*(cos)));
+	if(test < 0){
+		return (color){0,0,0};
+	}
+	//start by assuming n_i is always 1, will implement stack later
+	point tDir = sumPoints(2, scale(sqrt(test), scale(-1, normal)), scale(refraction, sumPoints(2, scale(cos, normal), scale(-1, incidentDir))));
+	ray T = (ray){intersection->iPoint, tDir};
+	color c = TraceRay(spec,  T, ++i);
+
+	c = scaleColor((1-frensel)*(1-opacity), c);
+	
+	return c;
+}
+
+color TraceRay(ImageSpec *spec, ray r, int iteration){
+	if(iteration > ITERATION_DEPTH) return (color){0,0,0};
 	intersectionData *closestIntersection = malloc(sizeof(intersectionData));
 	closestIntersection->distance = -1;
 	//check if the ray intersects any of the spheres, tracking the closest intersection point and what sphere it is.
 	for(int i = 0; i < spec->objectCount; i++){
 		object object = spec->objects[i];
-		intersectionData *intersection = intersect(spec, ray, object);
+		intersectionData *intersection = intersect(spec, r, object);
 		if( intersection == NULL){
 			continue;
 		}
@@ -202,15 +261,15 @@ color TraceRay(ImageSpec *spec, ray ray){
 		}
 	}
 	// if we have intersected a sphere use it to shade the ray, otherwise return the background color.
-	if(closestIntersection->distance >= 0){
-		return ShadeRay(spec, &ray, closestIntersection);
+	if(closestIntersection->distance > 0){
+		return ShadeRay(spec, &r, closestIntersection, iteration);
 	}
 	free(closestIntersection);
 	return spec->bkgcolor;
 }
 
-color ShadeRay(ImageSpec *spec, ray *r, intersectionData *intersection){
-	// c = ka*Od + kd * (N.L) * Od + ks *(H.N)^n * Os
+color ShadeRay(ImageSpec *spec, ray *r, intersectionData *intersection, int iteration){
+	// c = ka*Od + kd * (N.L) * Od + ks *(H.N)^n * Os + Fr.R
 	
 	//get the sphere and material of the sphere
 	object o = spec->objects[intersection->objIndex];
@@ -266,8 +325,8 @@ color ShadeRay(ImageSpec *spec, ray *r, intersectionData *intersection){
 		}
 	}
 
-	// direction from surface to the base of the view ray
-	point view = normalize(sumPoints(2, r->origin ,scale(-1,intersection->iPoint)));	
+	// direction from surface to the base of the incoming ray
+	point incomingRay = normalize(sumPoints(2, r->origin ,scale(-1,intersection->iPoint)));	
 	
 	// set the color to be the ambient component before adding light input
 	color c = scaleColor(mat.ambientStrength, ambientColor);
@@ -288,8 +347,9 @@ color ShadeRay(ImageSpec *spec, ray *r, intersectionData *intersection){
 
 		color diffuseComponent = calculateDiffuseComp(normal, lightDir, mat.diffuseStrength, ambientColor);
 
-		// the directon halfway between the light and view, when this is close to the normal the specular highlight will be maximized
-		point half = normalize(sumPoints(2, lightDir, view));
+		// the directon halfway between the light and incoming, when this is close to the normal the specular highlight will be maximized
+		point half = normalize(sumPoints(2, lightDir, incomingRay));
+	
 
 		color specularComponent = calculateSpecularComponent(normal, half, mat.specularStrength, mat.specularFallOff, mat.specularColor);
 
@@ -311,8 +371,15 @@ color ShadeRay(ImageSpec *spec, ray *r, intersectionData *intersection){
 		// combine the 3 components, scaling the light based components by the light intnsity and shadow flag
 		color illuminatedComponent = scaleColor(l.intensity*S*attenuation, sumColors(2, diffuseComponent, specularComponent));
 		c = sumColors(2, c, illuminatedComponent); 
+		
 	}
 
+
+	color reflectedColor = calculateReflection(spec, intersection, r, normal, mat.matColor.refraction, iteration);
+
+	color transparencyColor = calculateTransparency(spec, intersection, r, normal, mat.matColor.refraction, mat.opacity, iteration);
+
+	c = sumColors(3, c, reflectedColor, transparencyColor);
 	// after checking all lights, ensure no color is over max strength (1)
 	if(c.r > 1){
 		c.r = 1;

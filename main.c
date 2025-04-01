@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include "ImageSpecReader/ImageSpecReader.h"
 #include "Ray/ray.h"
+#include "Stack/stack.h"
 #include "Vector/vector.h"
 #include "Color/color.h"
 
@@ -57,7 +58,9 @@ void render(ImageSpec *spec, char* outPath){
 			//create unit ray with origin at the eye and pointing to pixel (x,y)
 			point rayEnd = sumPoints(3, ul, scale(x, hDelta), scale(y, vDelta));
 			point raydir = normalize(sumPoints(2, rayEnd, scale(-1, spec->origin)));
-		       	color c = TraceRay(spec, (ray){spec->origin,raydir});
+			colorStack stack = createColorStack();
+			push(&stack, &spec->bkgcolor);
+		       	color c = TraceRay(spec, (ray){spec->origin,raydir, &stack}, 0);
 			snprintf(pixel, MAX_PIXEL_SIZE, "%.0f %.0f %.0f\n", c.r*255, c.g*255, c.b*255);
 			fputs(pixel, outFile);
 		}
