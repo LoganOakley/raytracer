@@ -201,8 +201,8 @@ color calculateReflection(ImageSpec *spec, intersectionData *intersection, ray *
 	color c = TraceRay(spec, R, ++i);
 
 	double frensel0 = ((refractionIndex-1)/(refractionIndex+1)) * ((refractionIndex-1)/(refractionIndex+1));
-	double frensel = frensel0 + (1-frensel0)* pow(1- cos, 5);
-	if(frensel >1){
+	double frensel = frensel0 + (1-frensel0)* pow(1-cos, 5);
+	if(frensel > 1){
 		printf("ref\n");
 	}
 	c = scaleColor(frensel, c);
@@ -214,25 +214,22 @@ color calculateTransparency(ImageSpec *spec, intersectionData *intersection, ray
 		return (color){0,0,0};
 	}
 	point incidentDir = normalize(scale(-1, incoming->dir));
-	double refraction = 1/refractionIndex;
+	double refraction = spec->bkgcolor.refraction/refractionIndex;
 	double cos = dot(normal, incidentDir);
 	if(cos < 0){
 		cos = -cos;
 		normal = scale(-1, normal);
 		//hack refraction index until stack is created
-		refraction=refractionIndex;
+		refraction=refractionIndex/spec->bkgcolor.refraction;
 	}
 
 	double frensel0 = ((refractionIndex-1)/(refractionIndex+1)) * ((refractionIndex-1)/(refractionIndex+1));
 	double frensel = frensel0 + (1-frensel0) * pow(1- cos, 5);
-	if(frensel >1){
-		printf("trans\n");
-	}
 
-
-	double test = 1- ((refraction*refraction) *(1-(cos)*(cos)));
+	double test = 1 - ((refraction*refraction) *(1-(cos)*(cos)));
 	if(test < 0){
-		return (color){0,0,0};
+		point rDir = sumPoints(2, scale(2*cos, normal), scale(-1, incidentDir));
+		return TraceRay( spec, (ray){intersection->iPoint, rDir}, ++i);
 	}
 	//start by assuming n_i is always 1, will implement stack later
 	point tDir = sumPoints(2, scale(sqrt(test), scale(-1, normal)), scale(refraction, sumPoints(2, scale(cos, normal), scale(-1, incidentDir))));
@@ -245,6 +242,7 @@ color calculateTransparency(ImageSpec *spec, intersectionData *intersection, ray
 }
 
 color TraceRay(ImageSpec *spec, ray r, int iteration){
+
 	if(iteration > ITERATION_DEPTH) return (color){0,0,0};
 	intersectionData *closestIntersection = malloc(sizeof(intersectionData));
 	closestIntersection->distance = -1;

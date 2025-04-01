@@ -2,11 +2,9 @@
 #define RAY
 #include "../ImageSpecReader/ImageSpecReader.h"
 #include "../Color/color.h"
-#include "../Stack/stack.h"
 typedef struct{
 	point origin;
 	point dir;
-	colorStack *traveralStack;
 } ray;
 
 typedef struct{
